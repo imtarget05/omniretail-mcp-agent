@@ -43,8 +43,8 @@ def hitl_booking_node(state: RetailAgentState) -> Dict[str, Any]:
             "response": msg
         }
 
-    # 2. Handle Booking Reservation
-    if "booking_reservation" in intents:
+    # 2. Handle Booking Reservation or Stock Check with Purchase intent
+    if "booking_reservation" in intents or ("inventory_check" in intents and any(k in query.lower() for k in ["mua", "đặt", "giữ", "lấy", "chốt"])):
         matched_stores = inv_res.get("matched_stores", []) if inv_res else []
         best_store = None
         for s in matched_stores:
