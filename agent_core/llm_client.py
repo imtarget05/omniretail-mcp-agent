@@ -21,10 +21,23 @@ def call_local_llm(messages: List[Dict[str, str]], temperature: float = 0.2) -> 
     target_url = f"{LLM_API_BASE}/chat/completions"
     model = MODEL_NAME
 
-    if GROQ_API_KEY:
+    OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+    GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+    if OPENROUTER_API_KEY:
+        target_url = "https://openrouter.ai/api/v1/chat/completions"
+        headers["Authorization"] = f"Bearer {OPENROUTER_API_KEY}"
+        headers["HTTP-Referer"] = "https://omniretail-mcp-agent.streamlit.app"
+        headers["X-Title"] = "OmniRetail MWG"
+        model = os.environ.get("OPENROUTER_MODEL", "qwen/qwen-2.5-72b-instruct")
+    elif GROQ_API_KEY:
         target_url = "https://api.groq.com/openai/v1/chat/completions"
         headers["Authorization"] = f"Bearer {GROQ_API_KEY}"
         model = os.environ.get("GROQ_MODEL", "qwen-2.5-32b-it")
+    elif GEMINI_API_KEY:
+        target_url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+        headers["Authorization"] = f"Bearer {GEMINI_API_KEY}"
+        model = "gemini-1.5-flash"
     elif OPENAI_API_KEY:
         headers["Authorization"] = f"Bearer {OPENAI_API_KEY}"
 

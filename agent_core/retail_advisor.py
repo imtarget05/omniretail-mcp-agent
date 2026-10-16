@@ -64,16 +64,22 @@ def _call_cloud_llm(
     matched_skus: Optional[List[Dict[str, Any]]],
     inventory_res: Optional[Dict[str, Any]]
 ) -> Optional[str]:
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GROQ_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    api_key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("GEMINI_API_KEY") or os.environ.get("GROQ_API_KEY") or os.environ.get("OPENAI_API_KEY")
     if not api_key:
         return None
 
-    target_url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions" if os.environ.get("GEMINI_API_KEY") else (
-        "https://api.groq.com/openai/v1/chat/completions" if os.environ.get("GROQ_API_KEY") else "https://api.openai.com/v1/chat/completions"
-    )
-    model = "gemini-1.5-flash" if os.environ.get("GEMINI_API_KEY") else (
-        "qwen-2.5-32b-it" if os.environ.get("GROQ_API_KEY") else "gpt-4o-mini"
-    )
+    if os.environ.get("OPENROUTER_API_KEY") or api_key.startswith("sk-or-v1-"):
+        target_url = "https://openrouter.ai/api/v1/chat/completions"
+        model = os.environ.get("OPENROUTER_MODEL", "qwen/qwen-2.5-72b-instruct")
+    elif os.environ.get("GEMINI_API_KEY"):
+        target_url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+        model = "gemini-1.5-flash"
+    elif os.environ.get("GROQ_API_KEY"):
+        target_url = "https://api.groq.com/openai/v1/chat/completions"
+        model = "qwen-2.5-32b-it"
+    else:
+        target_url = "https://api.openai.com/v1/chat/completions"
+        model = "gpt-4o-mini"
 
     context_lines = []
     if selected_sku:
@@ -99,9 +105,11 @@ def _call_cloud_llm(
     try:
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
+            "Authorization": f"Bearer {api_key}",
+            "HTTP-Referer": "https://omniretail-mcp-agent.streamlit.app",
+            "X-Title": "OmniRetail MWG"
         }
-        with httpx.Client(timeout=12.0) as client:
+        with httpx.Client(timeout=14.0) as client:
             resp = client.post(
                 target_url,
                 headers=headers,
@@ -110,6 +118,8 @@ def _call_cloud_llm(
             if resp.status_code == 200:
                 data = resp.json()
                 return data["choices"][0]["message"]["content"]
+            else:
+                print(f"Cloud LLM returned status {resp.status_code}: {resp.text}")
     except Exception as e:
         print(f"Cloud LLM call failed: {e}. Falling back to domain synthesis.")
 
