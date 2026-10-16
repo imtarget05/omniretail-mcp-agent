@@ -319,21 +319,23 @@ with tab_map:
         df_map = pd.DataFrame(map_records)
 
         # Plotly Geo Scatter Map
-        fig_map = px.scatter_mapbox(
-            df_map,
-            lat="lat",
-            lon="lon",
-            hover_name="Tên Siêu Thị",
-            hover_data=["Quận", "Địa Chỉ", "Tồn Kho"],
-            size="Tồn Kho",
-            color="Tồn Kho",
-            color_continuous_scale="Viridis",
-            size_max=25,
-            zoom=11,
-            center=dict(lat=10.8000, lon=106.7000),
-            mapbox_style="carto-positron",
-            title=f"Mức Tồn Kho Của SKU '{sel_sku}' Trên 20 Siêu Thị HCMC"
-        )
+        map_fn = getattr(px, "scatter_map", None) or getattr(px, "scatter_mapbox", None)
+        style_key = "map_style" if hasattr(px, "scatter_map") else "mapbox_style"
+        map_kwargs = {
+            "lat": "lat",
+            "lon": "lon",
+            "hover_name": "Tên Siêu Thị",
+            "hover_data": ["Quận", "Địa Chỉ", "Tồn Kho"],
+            "size": "Tồn Kho",
+            "color": "Tồn Kho",
+            "color_continuous_scale": "Viridis",
+            "size_max": 25,
+            "zoom": 11,
+            "center": dict(lat=10.8000, lon=106.7000),
+            style_key: "carto-positron",
+            "title": f"Mức Tồn Kho Của SKU '{sel_sku}' Trên 20 Siêu Thị HCMC"
+        }
+        fig_map = map_fn(df_map, **map_kwargs)
         fig_map.update_layout(height=520, margin=dict(l=0, r=0, t=40, b=0))
         st.plotly_chart(fig_map, use_container_width=True)
 
