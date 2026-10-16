@@ -39,6 +39,15 @@ if not DATABASE_URL:
 
 os.environ["DATABASE_URL"] = DATABASE_URL
 
+# Auto-load API keys from Streamlit Cloud Secrets if configured
+if hasattr(st, "secrets"):
+    try:
+        for key_name in ["GEMINI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY", "LOCAL_LLM_URL", "LLM_API_BASE"]:
+            if key_name in st.secrets and not os.environ.get(key_name):
+                os.environ[key_name] = str(st.secrets[key_name])
+    except Exception:
+        pass
+
 from agent_core.graph import process_customer_query
 from agent_core.retail_advisor import stream_response_generator
 from retail_mcp_server.tools.inventory import check_store_inventory
@@ -228,14 +237,24 @@ with st.sidebar:
     """)
 
     st.divider()
-    custom_key = st.text_input("🔑 OpenAI / Groq / Gemini Key (Tùy chọn):", type="password", help="Hệ thống mặc định tích hợp sẵn Dynamic Retail Reasoning Engine. Bạn có thể nhập key cá nhân nếu muốn thử nghiệm LLM ngoài.")
-    if custom_key:
-        if custom_key.startswith("gsk_"):
-            os.environ["GROQ_API_KEY"] = custom_key
-        elif custom_key.startswith("AIza"):
-            os.environ["GEMINI_API_KEY"] = custom_key
-        else:
-            os.environ["OPENAI_API_KEY"] = custom_key
+    active_cloud_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GROQ_API_KEY") or os.environ.get("OPENAI_API_KEY")
+    if active_cloud_key:
+        provider_name = "Google Gemini" if os.environ.get("GEMINI_API_KEY") else ("Groq Qwen" if os.environ.get("GROQ_API_KEY") else "OpenAI")
+        st.sidebar.success(f"🔒 AI Engine: {provider_name} (Secured)")
+    else:
+        st.sidebar.info("💡 AI Engine: Dynamic Reasoning (Built-in)")
+
+    with st.sidebar.expander("🔑 Cấu hình API Key Ngoài (Tùy chọn)", expanded=False):
+        st.caption("Khuyên dùng: Cấu hình trong Streamlit Cloud Secrets để bảo mật vĩnh viễn và không bị mất khi reload.")
+        custom_key = st.text_input("Nhập Key tạm thời:", type="password", help="Hệ thống mặc định tích hợp sẵn Dynamic Retail Reasoning Engine.")
+        if custom_key:
+            if custom_key.startswith("gsk_"):
+                os.environ["GROQ_API_KEY"] = custom_key
+            elif custom_key.startswith("AIza"):
+                os.environ["GEMINI_API_KEY"] = custom_key
+            else:
+                os.environ["OPENAI_API_KEY"] = custom_key
+            st.success("Đã kích hoạt Key cho phiên hiện tại!")
 
 # ==============================================================================
 # TOP BRANDING BAR
