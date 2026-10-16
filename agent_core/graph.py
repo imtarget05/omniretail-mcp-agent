@@ -126,6 +126,7 @@ def process_customer_query(
 
     return {
         "response": response_text,
+        "final_response": response_text,
         "selected_sku": result.get("selected_sku"),
         "inventory": result.get("inventory_result"),
         "booking_ticket": result.get("booking_ticket"),
