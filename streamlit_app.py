@@ -283,6 +283,61 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+def render_tool_pills(tool_calls):
+    if not tool_calls:
+        return
+    pills_html = '<div style="display:flex; flex-wrap:wrap; gap:6px; margin: 4px 0 10px 0;">'
+    for tc in tool_calls:
+        tool_name = tc.get("tool", "tool")
+        latency = tc.get("latency_ms", 15)
+        args = tc.get("args", "")
+        pills_html += f"""
+        <div style="display:inline-flex; align-items:center; gap:6px; background:#1e293b; border:1px solid #3b82f6; border-radius:16px; padding:3px 10px; font-size:11px; font-family:monospace; color:#93c5fd;">
+            <span style="color:#60a5fa; font-weight:700;">⚡ FastMCP Tool:</span>
+            <span style="color:#f8fafc;">{tool_name}({args})</span>
+            <span style="background:rgba(16,185,129,0.25); color:#34d399; padding:1px 6px; border-radius:8px; font-size:10px; font-weight:bold;">{latency}ms</span>
+        </div>
+        """
+    pills_html += '</div>'
+    st.markdown(pills_html, unsafe_allow_html=True)
+
+def render_product_card(product, inventory=None):
+    if not product:
+        return
+    name = product.get("name", "Sản phẩm chính hãng")
+    sku = product.get("sku", "")
+    price_val = product.get("price") or product.get("base_price", 0)
+    price_str = f"{int(price_val):,}đ" if price_val else "Giá ưu đãi tại quầy"
+    brand = product.get("brand", "MWG")
+    specs = product.get("specs_markdown") or product.get("text") or ""
+    specs_summary = specs[:130] + "..." if len(specs) > 130 else specs
+
+    stock_badge = "🟢 Sẵn hàng tại 20 siêu thị TP.HCM"
+    if inventory and inventory.get("matched_stores"):
+        avail_cnt = sum(1 for s in inventory["matched_stores"] if s.get("stock_quantity", 0) > 0)
+        stock_badge = f"🟢 Còn hàng tại {avail_cnt} siêu thị gần bạn"
+
+    st.markdown(f"""
+    <div style="background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border:1px solid #38bdf8; border-radius:12px; padding:14px 18px; margin:10px 0; box-shadow:0 6px 18px -4px rgba(56, 189, 248, 0.2);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="background:#f59e0b; color:#0f172a; font-size:10px; font-weight:800; padding:2px 8px; border-radius:4px; letter-spacing:0.5px;">MWG VERIFIED SKU</span>
+                <span style="font-size:12px; color:#38bdf8; font-weight:600;">{brand}</span>
+            </div>
+            <span style="font-size:11px; color:#94a3b8; font-family:monospace;">Mã: {sku}</span>
+        </div>
+        <div style="font-size:16px; font-weight:700; color:#ffffff; margin-bottom:4px;">{name}</div>
+        {f'<div style="font-size:12px; color:#cbd5e1; margin-bottom:10px; line-height:1.4;">{specs_summary}</div>' if specs_summary else ''}
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #334155; padding-top:10px;">
+            <div>
+                <span style="font-size:18px; font-weight:800; color:#38bdf8;">{price_str}</span>
+                <span style="font-size:11px; color:#94a3b8; margin-left:6px;">(Đã gồm VAT)</span>
+            </div>
+            <div style="font-size:12px; color:#34d399; font-weight:600; background:rgba(16,185,129,0.15); padding:4px 10px; border-radius:12px; border:1px solid rgba(16,185,129,0.3);">{stock_badge}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 # Top KPI Metric Cards
 k1, k2, k3, k4 = st.columns(4)
 k1.metric("Danh Mục Sản Phẩm", f"{skus_cnt:,} SKUs", delta="Điện thoại & Điện máy")
@@ -290,11 +345,50 @@ k2.metric("Mạng Lưới Siêu Thị", f"{stores_cnt} Chi Nhánh", delta="TP. H
 k3.metric("Phiếu Đặt Giữ Hàng", f"{tickets_cnt} Đơn Cọc", delta="Hệ thống tự động")
 k4.metric("Chi Phí Hạ Tầng Cloud", "$0.00 / tháng", delta="100% Serverless")
 
+# Recruiter & Architecture Hub Expander
+with st.expander("💼 DÀNH CHO NHÀ TUYỂN DỤNG: HỒ SƠ ỨNG VIÊN & KIẾN TRÚC AGENTIC AI (MWG)", expanded=False):
+    c_cand, c_arch = st.columns([1, 1.2], gap="large")
+    with c_cand:
+        st.markdown("""
+        #### 👨‍💻 Ứng Viên: Mai Nguyễn Bình Tân
+        - **Vị trí mục tiêu:** Senior AI Engineer (Agentic AI / LLMOps) — *Tập đoàn Thế Giới Di Động (MWG)*
+        - **Kỹ năng lõi đáp ứng JD:**
+          - **Multi-Agent Orchestration**: LangGraph StateGraph ReAct, Reversible HITL Gate.
+          - **Model Context Protocol (FastMCP)**: Microservices Serverless kết nối Neon PostgreSQL Singapore.
+          - **High-Performance RAG**: Qdrant Dense Vector + Sparse BM25 + Cross-Encoder Reranker.
+          - **Production Streaming**: Server-Sent Events (SSE) token streaming với OpenRouter Qwen-2.5-72B.
+          - **Prompt Guardrail & Security**: Chống Prompt Injection, Price Hijacking, và Semantic Cache Redis (<20ms).
+        - **GitHub Source Code:** [github.com/imtarget05/omniretail-mcp-agent](https://github.com/imtarget05/omniretail-mcp-agent)
+        """)
+    with c_arch:
+        st.markdown("""
+        #### 🏛️ Kiến Trúc Hệ Thống Sản Xuất (100% Serverless - $0/tháng)
+        ```text
+        [Khách Hàng / Nhân Viên Bán Hàng]
+                      │ (Streaming Chat / Fast Prompt Chips)
+                      ▼
+        [1. PromptGuard Gate] ──▶ Block nếu phát hiện Prompt Injection / Gian lận giá
+                      │ (Passed)
+                      ▼
+        [2. Semantic Cache (<20ms)] ──▶ Trả lời tức thì câu hỏi thường gặp (FAQ)
+                      │ (Cache Miss)
+                      ▼
+        [3. LangGraph ReAct Supervisor] ──▶ Phân tích Intent & Điều phối Tools
+                      ├─▶ Hybrid Product Discovery (Qdrant + Postgres Specs)
+                      ├─▶ FastMCP check_store_inventory (Neon SG Pooler <18ms)
+                      ├─▶ FastMCP lookup_warranty (Tra cứu ERP bảo hành)
+                      └─▶ HITL Gate + create_booking_ticket (Xuất vé E-Voucher Pass)
+                      ▼
+        [4. SSE Token Streamer (Qwen-2.5-72B)] ──▶ Render UI Realtime & Product Cards
+        ```
+        """)
+
 # 2 CORE ENTERPRISE TABS
 tab_chat, tab_ops = st.tabs([
     "💬 Trợ Lý Tư Vấn Mua Sắm & Đặt Giữ Hàng (Customer Concierge)",
     "🏪 Tra Cứu Tồn Kho 20 Siêu Thị & Giám Sát AI (Ops Center)"
 ])
+
 
 # ==============================================================================
 # TAB 1: SMART CONCIERGE & MULTI-TURN STREAMING CHAT
@@ -333,9 +427,14 @@ with tab_chat:
     # Render Chat History
     for msg in st.session_state["chat_messages"]:
         with st.chat_message(msg["role"]):
+            meta = msg.get("metadata")
+            if meta and meta.get("tool_calls"):
+                render_tool_pills(meta["tool_calls"])
+            if meta and meta.get("selected_sku"):
+                render_product_card(meta["selected_sku"], meta.get("inventory"))
             st.markdown(msg["content"])
-            if msg.get("metadata") and msg["metadata"].get("ticket_created"):
-                ticket = msg["metadata"]["ticket_created"]
+            if meta and meta.get("ticket_created"):
+                ticket = meta["ticket_created"]
                 st.markdown(f"""
                 <div class="vip-card">
                     <div class="vip-header">
@@ -377,6 +476,15 @@ with tab_chat:
                 res = process_customer_query(user_prompt)
                 total_latency = (time.time() - start_t) * 1000
 
+            tool_calls = res.get("tool_calls", [])
+            if tool_calls:
+                render_tool_pills(tool_calls)
+
+            selected_sku = res.get("selected_sku")
+            inventory = res.get("inventory")
+            if selected_sku:
+                render_product_card(selected_sku, inventory)
+
             reply_text = res.get("response") or res.get("final_response") or "Dạ em đã tra cứu thông tin sản phẩm trên hệ thống cho anh/chị ạ."
 
             # Real-Time Token Streaming (Typewriter / SSE Animation)
@@ -407,7 +515,10 @@ with tab_chat:
 
             meta_info = {
                 "total_latency_ms": total_latency,
-                "ticket_created": ticket_data
+                "ticket_created": ticket_data,
+                "tool_calls": tool_calls,
+                "selected_sku": selected_sku,
+                "inventory": inventory
             }
 
             st.session_state["chat_messages"].append({
@@ -415,6 +526,7 @@ with tab_chat:
                 "content": reply_text,
                 "metadata": meta_info
             })
+
 
     # Collapsible Recent Bookings Log
     with st.expander("📑 Sổ theo dõi Đơn Đặt Giữ Hàng gần đây tại 20 Siêu Thị", expanded=False):

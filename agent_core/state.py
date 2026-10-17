@@ -21,3 +21,5 @@ class RetailAgentState(TypedDict):
     booking_ticket: Optional[Dict[str, Any]]
     awaiting_confirmation: bool
     final_response: str
+    tool_calls: Optional[List[Dict[str, Any]]]
+

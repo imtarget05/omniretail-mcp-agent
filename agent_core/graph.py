@@ -109,7 +109,8 @@ def process_customer_query(
         "delivery_time": "Sáng mai 09:00",
         "booking_ticket": None,
         "awaiting_confirmation": False,
-        "final_response": ""
+        "final_response": "",
+        "tool_calls": []
     }
 
     config = {"configurable": {"thread_id": thread_id}}
@@ -128,9 +129,11 @@ def process_customer_query(
         "response": response_text,
         "final_response": response_text,
         "selected_sku": result.get("selected_sku"),
+        "matched_skus": result.get("matched_skus", []),
         "inventory": result.get("inventory_result"),
         "booking_ticket": result.get("booking_ticket"),
         "awaiting_confirmation": result.get("awaiting_confirmation"),
+        "tool_calls": result.get("tool_calls", []),
         "status": "SUCCESS",
         "thread_id": thread_id,
         "telemetry": {

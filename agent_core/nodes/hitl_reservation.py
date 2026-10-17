@@ -4,7 +4,8 @@ Handles safe reservation booking with explicit customer phone confirmation,
 warranty lookups, and dynamic sales consultation synthesis.
 """
 
-from typing import Dict, Any
+import time
+from typing import Dict, Any, List
 from retail_mcp_server.tools.booking import create_booking_ticket
 from retail_mcp_server.tools.warranty import lookup_warranty
 from agent_core.state import RetailAgentState
@@ -18,10 +19,20 @@ def hitl_booking_node(state: RetailAgentState) -> Dict[str, Any]:
     inv_res = state.get("inventory_result")
     customer_phone = state.get("customer_phone")
     delivery_time = state.get("delivery_time") or "Sáng mai 09:00"
+    tool_calls: List[Dict[str, Any]] = list(state.get("tool_calls") or [])
 
     # 1. Handle Warranty Lookup directly
     if "warranty_lookup" in intents:
+        t0 = time.perf_counter()
         war_data = lookup_warranty(phone=customer_phone or "0901234567")
+        dur_ms = round((time.perf_counter() - t0) * 1000, 1)
+        tool_calls.append({
+            "tool": "lookup_warranty",
+            "args": f"phone='{customer_phone or '0901234567'}'",
+            "latency_ms": dur_ms,
+            "target": "Neon PostgreSQL (SG)",
+            "status": "FOUND" if war_data.get("found") else "NOT_FOUND"
+        })
         if war_data.get("found"):
             items_str = "\n".join([
                 f"- **{r['product_name']}** (SKU: `{r['sku']}`):\n"
@@ -40,7 +51,8 @@ def hitl_booking_node(state: RetailAgentState) -> Dict[str, Any]:
         return {
             "awaiting_confirmation": False,
             "final_response": msg,
-            "response": msg
+            "response": msg,
+            "tool_calls": tool_calls
         }
 
     # 2. Handle Booking Reservation or Stock Check with Purchase intent
@@ -72,11 +84,13 @@ def hitl_booking_node(state: RetailAgentState) -> Dict[str, Any]:
             return {
                 "awaiting_confirmation": True,
                 "final_response": msg,
-                "response": msg
+                "response": msg,
+                "tool_calls": tool_calls
             }
 
         # Customer confirmed phone -> Execute FastMCP booking tool!
         print(f"🔒 Executing Write Operation via MCP: create_booking_ticket for {customer_phone} at {store_id}")
+        t0 = time.perf_counter()
         booking_res = create_booking_ticket(
             sku=sku_code,
             store_id=store_id,
@@ -84,6 +98,14 @@ def hitl_booking_node(state: RetailAgentState) -> Dict[str, Any]:
             customer_phone=customer_phone,
             delivery_time=delivery_time
         )
+        dur_ms = round((time.perf_counter() - t0) * 1000, 1)
+        tool_calls.append({
+            "tool": "create_booking_ticket",
+            "args": f"sku='{sku_code}', store='{store_id}', phone='{customer_phone}'",
+            "latency_ms": dur_ms,
+            "target": "Neon PostgreSQL (SG)",
+            "status": "CONFIRMED" if booking_res.get("success") else "FAILED"
+        })
 
         ticket_id = booking_res.get("ticket_id", "BK-SUCCESS")
         confirm_msg = (
@@ -101,7 +123,8 @@ def hitl_booking_node(state: RetailAgentState) -> Dict[str, Any]:
             "booking_ticket": booking_res,
             "awaiting_confirmation": False,
             "final_response": confirm_msg,
-            "response": confirm_msg
+            "response": confirm_msg,
+            "tool_calls": tool_calls
         }
 
     # 3. Product Discovery & General Retail Consultation (Dynamic Generative Reasoning)
@@ -116,5 +139,7 @@ def hitl_booking_node(state: RetailAgentState) -> Dict[str, Any]:
     return {
         "awaiting_confirmation": False,
         "final_response": consultation_msg,
-        "response": consultation_msg
+        "response": consultation_msg,
+        "tool_calls": tool_calls
     }
+
